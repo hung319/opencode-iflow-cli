@@ -25,7 +25,7 @@ export async function refreshAccessToken(auth: IFlowAuthDetails): Promise<IFlowA
       expires: result.expiresAt,
       authMethod: 'oauth',
       apiKey: result.apiKey,
-  email: result.email
+      email: result.email
     }
   }
 

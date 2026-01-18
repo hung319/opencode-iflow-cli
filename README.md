@@ -1,224 +1,168 @@
 # OpenCode iFlow Auth Plugin
+[![npm version](https://img.shields.io/npm/v/@zhafron/opencode-iflow-auth)](https://www.npmjs.com/package/@zhafron/opencode-iflow-auth)
+[![npm downloads](https://img.shields.io/npm/dm/@zhafron/opencode-iflow-auth)](https://www.npmjs.com/package/@zhafron/opencode-iflow-auth)
+[![license](https://img.shields.io/npm/l/@zhafron/opencode-iflow-auth)](https://www.npmjs.com/package/@zhafron/opencode-iflow-auth)
 
-OpenCode authentication plugin for iFlow.cn, providing access to Claude, GPT, Gemini, DeepSeek, and Qwen models through a unified API.
+OpenCode plugin for iFlow.cn providing access to Qwen, DeepSeek, Kimi, GLM, and iFlow ROME models with dual authentication support.
 
 ## Features
 
-- **Dual Authentication**: Support both OAuth 2.0 and API Key authentication
-- **Multi-Account Support**: Add and manage multiple accounts with automatic rotation
-- **Account Selection Strategies**: Sticky, round-robin, or lowest-usage
-- **Automatic Token Refresh**: OAuth tokens are automatically refreshed when expired
-- **Rate Limit Handling**: Automatic account switching on rate limits
-- **Error Recovery**: Unhealthy accounts are automatically recovered
-- **Token Counting**: Built-in token usage tracking with tiktoken
-- **Thinking Models**: Special support for GLM-4.x thinking models
-
-## Supported Models
-
-- **iFlow ROME**: `iflow-rome-30ba3b` (256K conteK output)
-- **Qwen3**: `qwen3-max`, `qwen3-coder-plus`, `qwen3-vl-plus`, `qwen3-235b-a22b-thinking-2507`, etc.
-- **Kimi K2**: `kimi-k2`, `kimi-k2-0905`
-- **GLM-4**: `glm-4.6`, `glm-4.7` (with thinking support)
-- **DeepSeek**: `deepseek-v3`, `deepseek-v3.2`, `deepseek-r1`
+- Dual authentication: OAuth 2.0 (PKCE) and API Key support.
+- Multi-account rotation with sticky and round-robin strategies.
+- Automated token refresh and rate limit handling with exponential backoff.
+- Native thinking mode support for GLM-4.x models.
+- Configurable request timeout and iteration limits to prevent hangs.
+- Automatic port selection for OAuth callback server to avoid conflicts.
 
 ## Installation
 
-```bash
-npm install @zhafron/opencode-iflow-auth
+Add the plugin to your `opencode.json` or `opencode.jsonc`:
+
+```json
+{
+  "plugin": ["@zhafron/opencode-iflow-auth"],
+  "provider": {
+    "iflow": {
+      "models": {
+        "iflow-rome-30ba3b": {
+          "name": "iFlow ROME 30B",
+          "limit": { "context": 256000, "output": 64000 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "qwen3-coder-plus": {
+          "name": "Qwen3 Coder Plus",
+          "limit": { "context": 1000000, "output": 64000 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "qwen3-max": {
+          "name": "Qwen3 Max",
+          "limit": { "context": 256000, "output": 32000 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "qwen3-vl-plus": {
+          "name": "Qwen3 VL Plus",
+          "limit": { "context": 256000, "output": 32000 },
+          "modalities": { "input": ["text", "image"], "output": ["text"] }
+        },
+        "qwen3-235b-a22b-thinking-2507": {
+          "name": "Qwen3 235B Thinking",
+          "limit": { "context": 256000, "output": 64000 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "kimi-k2": {
+          "name": "Kimi K2",
+          "limit": { "context": 128000, "output": 64000 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "kimi-k2-0905": {
+          "name": "Kimi K2 0905",
+          "limit": { "context": 256000, "output": 64000 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "glm-4.6": {
+          "name": "GLM-4.6 Thinking",
+          "limit": { "context": 200000, "output": 128000 },
+          "modalities": { "input": ["text", "image"], "output": ["text"] }
+        },
+        "deepseek-v3": {
+          "name": "DeepSeek V3",
+          "limit": { "context": 128000, "output": 32000 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "deepseek-v3.2": {
+          "name": "DeepSeek V3.2",
+          "limit": { "context": 128000, "output": 64000 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "deepseek-r1": {
+          "name": "DeepSeek R1",
+          "limit": { "context": 128000, "output": 32000 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        },
+        "qwen3-32b": {
+          "name": "Qwen3 32B",
+          "limit": { "context": 128000, "output": 32000 },
+          "modalities": { "input": ["text"], "output": ["text"] }
+        }
+      }
+    }
+  }
+}
 ```
 
-## Quick Start
+## Setup
 
-### 1. Login with OAuth (Recommended)
-
-```bash
-opencode auth login
-```
-
-Choose OAuth when prompted, then follow the browser flow.
-
-### 2. Login with API Key
-
-```bash
-opencode auth login
-```
-
-Choose API Key when prompted, then enter your iFlow API key rts with `sk-`).
-
-### 3. Add Multiple Accounts
-
-The plugin will prompt you to add more accounts after each successful authentication. You can add unlimited accounts for automatic rotation.
+1. Run `opencode auth login`.
+2. Select `Other`, type `iflow`, and press enter.
+3. Choose authentication method:
+   - **OAuth 2.0**: Follow browser flow for secure token-based authentication.
+   - **API Key**: Enter your iFlow API key (starts with `sk-`).
+4. Configuration template will be automatically created at `~/.config/opencode/iflow.json` on first load.
 
 ## Configuration
 
-Create `~/.config/opencode/iflow-config.json`:
+The plugin supports extensive configuration options. Edit `~/.config/opencode/iflow.json`:
 
 ```json
 {
   "default_auth_method": "oauth",
-  "account_selection_strategy": "lowest-usage",
+  "account_selection_strategy": "round-robin",
   "auth_server_port_start": 8087,
   "auth_server_port_range": 10,
   "max_request_iterations": 50,
   "request_timeout_ms": 300000,
-  "enable_usage_tracking": false,
   "enable_debug_logging": false
 }
 ```
 
 ### Configuration Options
 
-- `default_auth_method`: `"oauth"` or `"apikey"` (default: `"oauth"`)
-- `account_selection_strategy`: `"sticky"`, `"round-robin"`, or `"lowest-usage"` (default: `"lowest-usage"`)
-- `auth_server_port_start`: Starting port for OAuth callback server (default: `8087`)
-- `auth_server_port_range`: Number of ports to try (default: `10`)
-- `max_request_iterations`: Maximum retry iterations (default: `50`)
-- `request_timeout_ms`: Request timeout in milliseconds (default: `300000`)
-- `enable_usage_tracking`: Enable token usage tracking (default: `false`)
-- `enable_debug_logging`: Enable debug logs (default: `false`)
+- `default_auth_method`: Default authentication method (`oauth`, `apikey`)
+- `account_selection_strategy`: Account rotation strategy (`sticky`, `round-robin`)
+- `auth_server_port_start`: Starting port for OAuth callback server (1024-65535)
+- `auth_server_port_range`: Number of ports to try (1-100)
+- `max_request_iterations`: Maximum loop iterations to prevent hangs (10-1000)
+- `request_timeout_ms`: Request timeout in milliseconds (60000-600000ms)
+- `enable_debug_logging`: Enable detailed debug logs
 
-## Usage Examples
+### Environment Variables
 
-### Basic Chat
+All configuration options can be overridden via environment variables:
+
+- `IFLOW_DEFAULT_AUTH_METHOD`
+- `IFLOW_ACCOUNT_SELECTION_STRATEGY`
+- `IFLOW_AUTH_SERVER_PORT_START`
+- `IFLOW_AUTH_SERVER_PORT_RANGE`
+- `IFLOW_MAX_REQUEST_ITERATIONS`
+- `IFLOW_REQUEST_TIMEOUT_MS`
+- `IFLOW_ENABLE_DEBUG_LOGGING`
+
+## Storage
+
+**Linux/macOS:**
+- Credentials: `~/.config/opencode/iflow-accounts.json`
+- Plugin Config: `~/.config/opencode/iflow.json`
+
+**Windows:**
+- Credentials: `%APPDATA%\opencode\iflow-accounts.json`
+- Plugin Config: `%APPDATA%\opencode\iflow.json`
+
+## Thinking Models
+
+GLM-4.x models automatically enable thinking mode with special configuration:
 
 ```typescript
-// The plugin handles authentication automatically
-// Just use OpenCode normally with iFlow models
+// GLM-4.6 and GLM-4.7 automatically add:
+{
+  "chat_template_kwargs": {
+    "enable_thinking": true,
+    "clear_thinking": false
+  }
+}
 ```
 
-### Using Thinking Models
+## Disclaimer
 
-```typescript
-// GLM-4.x models automatically enable thinking mode
-// Use glm-4.6 or glm-4.7 for reasoning tasks
-```
+This plugin is provided strictly for learning and educational purposes. It is an independent implementation and is not affiliated with, endorsed by, or supported by iFlow.cn. Use of this plugin is at your own risk.
 
-### Vision Models
-
-```typescript
-// Use qwen3-vl-plus for vision tasks
-// Images are automatically processed
-```
-
-## Account Management
-
-### View Accounts
-
-```bash
-cat ~/.config/opencode/iflow-accounts.json
-```
-
-### Remove All Accounts
-
-```bash
-rm ~/.config/opencode/iflow-accounts.json
-rm ~/.config/opencode/iflow-usage.json
-```
-
-### Fresh Start
-
-When logging in, choose "fresh start" to replace all existing accounts.
-
-## Authentication Methods
-
-### OAuth 2.0
-
-**Pros:**
-- More secure (tokens can be revoked)
-- Automatic token refresh
-- Better for long-term use
-
-**Cons:**
-- Requires browser access
-- More complex setup
-
-### API Key
-
-**Pros:**
-- Simple and fast
-- Works in headless environments
-- No browser required
-
-**Cons:**
-- Less secure (keys don't expire)
-- Manual key management
-
-## Troubleshooting
-
-### OAuth Flow Fails
-
-1. Check if port 8087-8096 are available
-2. Try different port range in config
-3. Check firewall settings
-
-### API Key Invalid
-
-1. Verify key starts with `sk-`
-2. Check key hasn't been revoked
-3. Test key with: `curl -H "Authorization: Bearer YOUR_KEY" https://apis.iflow.cn/v1/models`
-
-### Rate Limits
-
-The plugin automatically switches accounts when rate limited. Add more accounts for better throughput.
-
-### Token Refresh Fails
-
-OAuth tokens are automatically refreshed. If refresh fails repeatedly, re-login with `opencode auth login`.
-
-## Development
-
-### Build
-
-```bash
-npm run build
-```
-
-### Format
-
-```bash
-npm run format
-```
-
-### Type Check
-
-```bash
-npm run typecheck
-```
-
-## Architecture
-
-```
-src/
-├── constants.ts          # iFlow constants and model definitions
-├── index.ts             # Plugin exports
-├── plugin.ts            # Main plugin implementation
-├── iflow/
-│   ├── oauth.ts         # OAuth 2.0 flow (PKCE)
-│   └── apikey.ts        # API key validation
-└── plugin/
-    ├── accounts.ts      # Account management
-    ├── cli.ts           # CLI prompts
-    ├── config/          # Configuration system
-    ├── errors.ts        # Error types
-    ├── logger.ts        # Logging
-    ├── models.ts        # Model utilities
-    ├── server.ts        # OAuth callback server
-    ├── storage.ts       # Persistent storage
-    ├── token.ts         # Token refresh
-    ├── types.ts         # TypeScript types
-    └── usage.ts         # Token counting (tiktoken)
-```
-
-## License
-
-MIT
-
-## Author
-
-tickernelz
-
-## Links
-
-- [GitHub](https://github.com/tickernelz/opencode-iflow-auth)
-- [npm](https://www.npmjs.com/package/@zhafron/opencode-iflow-auth)
-- [iFlow.cn](https://iflow.cn)
+Feel free to open a PR to optimize this plugin further.

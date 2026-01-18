@@ -26,8 +26,6 @@ export interface ManagedAccount {
   isHealthy: boolean
   unhealthyReason?: string
   recoveryTime?: number
-  usedCount?: number
-  limitCount?: number
   lastUsed?: number
 }
 
@@ -51,18 +49,7 @@ export interface AccountStorage {
   activeIndex: number
 }
 
-export interface UsageMetadata {
-  usedCount: number
-  limitCount: number
-  lastSync: number
-}
-
-export interface UsageStorage {
-  version: 1
-  usage: Record<string, UsageMetadata>
-}
-
-export type AccountSelectionStrategy = 'sticky' | 'round-robin' | 'lowest-usage'
+export type AccountSelectionStrategy = 'sticky' | 'round-robin'
 
 export interface IFlowPluginConfig {
   default_auth_method: IFlowAuthMethod
@@ -71,6 +58,5 @@ export interface IFlowPluginConfig {
   auth_server_port_range: number
   max_request_iterations: number
   request_timeout_ms: number
-  enable_usage_tracking: boolean
   enable_debug_logging: boolean
 }

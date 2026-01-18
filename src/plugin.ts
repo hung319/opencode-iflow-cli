@@ -3,12 +3,17 @@ import { exec } from 'node:child_process'
 import { AccountManager, generateAccountId } from './plugin/accounts'
 import { accessTokenExpired } from './plugin/token'
 import { refreshAccessToken } from './plugin/token'
-import { fetchUsageLimits } from './plugin/usage'
 import { authorizeIFlowOAuth } from './iflow/oauth'
 import { validateApiKey } from './iflow/apikey'
 import { startOAuthServer } from './plugin/server'
 import { IFlowTokenRefreshError } from './plugin/errors'
-import { promptAddAnotherAccount, promptLoginMode, promptAuthMethod, promptApiKey, promptEmail } from './plugin/cli'
+import {
+  promptAddAnotherAccount,
+  promptLoginMode,
+  promptAuthMethod,
+  promptApiKey,
+  promptEmail
+} from './plugin/cli'
 import type { ManagedAccount } from './plugin/types'
 import type { IFlowOAuthTokenResult } from './iflow/oauth'
 import { IFLOW_CONSTANTS, applyThinkingConfig } from './constants'
@@ -54,7 +59,7 @@ export const createIFlowPlugin =
             baseURL: IFLOW_CONSTANTS.BASE_URL,
             async fetch(input: any, init?: any): Promise<Response> {
               const url = typeof input === 'string' ? input : input.url
-              
+
               let retry = 0
               let iterations = 0
               const startTime = Date.now()
@@ -90,7 +95,11 @@ export const createIFlowPlugin =
                   throw new Error('No healthy accounts available')
                 }
 
-                if (acc.authMethod === 'oauth' && acc.expiresAt && accessTokenExpired(acc.expiresAt)) {
+                if (
+                  acc.authMethod === 'oauth' &&
+                  acc.expiresAt &&
+                  accessTokenExpired(acc.expiresAt)
+                ) {
                   try {
                     const authDetails = am.toAuthDetails(acc)
                     const refreshed = await refreshAccessToken(authDetails)
@@ -109,7 +118,7 @@ export const createIFlowPlugin =
 
                 const headers = {
                   ...init?.headers,
-                  'Authorization': `Bearer ${acc.apiKey}`,
+                  Authorization: `Bearer ${acc.apiKey}`,
                   'User-Agent': IFLOW_CONSTANTS.USER_AGENT,
                   'Content-Type': 'application/json'
                 }
@@ -171,7 +180,9 @@ export const createIFlowPlugin =
                   const accounts: IFlowOAuthTokenResult[] = []
                   let startFresh = true
 
-                  const existingAm = await AccountManager.loadFromDisk(config.account_selection_strategy)
+                  const existingAm = await AccountManager.loadFromDisk(
+                    config.account_selection_strategy
+                  )
                   if (existingAm.getAccountCount() > 0) {
                     const existingAccounts = existingAm.getAccounts().map((acc, idx) => ({
                       email: acc.email,
@@ -262,7 +273,9 @@ export const createIFlowPlugin =
 
                     let currentAccountCount = accounts.length
                     try {
-                      const currentStorage = await AccountManager.loadFromDisk(config.account_selection_strategy)
+                      const currentStorage = await AccountManager.loadFromDisk(
+                        config.account_selection_strategy
+                      )
                       currentAccountCount = currentStorage.getAccountCount()
                     } catch {}
 
@@ -284,7 +297,9 @@ export const createIFlowPlugin =
 
                   let actualAccountCount = accounts.length
                   try {
-                    const finalStorage = await AccountManager.loadFromDisk(config.account_selection_strategy)
+                    const finalStorage = await AccountManager.loadFromDisk(
+                      config.account_selection_strategy
+                    )
                     actualAccountCount = finalStorage.getAccountCount()
                   } catch {}
 
@@ -313,7 +328,9 @@ export const createIFlowPlugin =
                     callback: async () => {
                       try {
                         const res = await waitForAuth()
-                        const am = await AccountManager.loadFromDisk(config.account_selection_strategy)
+                        const am = await AccountManager.loadFromDisk(
+                          config.account_selection_strategy
+                        )
                         const acc: ManagedAccount = {
                           id: generateAccountId(),
                           email: res.email,
@@ -358,7 +375,9 @@ export const createIFlowPlugin =
                   const accounts: Array<{ apiKey: string; email: string }> = []
                   let startFresh = true
 
-                  const existingAm = await AccountManager.loadFromDisk(config.account_selection_strategy)
+                  const existingAm = await AccountManager.loadFromDisk(
+                    config.account_selection_strategy
+                  )
                   if (existingAm.getAccountCount() > 0) {
                     const existingAccounts = existingAm.getAccounts().map((acc, idx) => ({
                       email: acc.email,
@@ -398,7 +417,9 @@ export const createIFlowPlugin =
                       accounts.push({ apiKey, email })
 
                       const isFirstAccount = accounts.length === 1
-                      const am = await AccountManager.loadFromDisk(config.account_selection_strategy)
+                      const am = await AccountManager.loadFromDisk(
+                        config.account_selection_strategy
+                      )
 
                       if (isFirstAccount && startFresh) {
                         am.getAccounts().forEach((acc) => am.removeAccount(acc))
@@ -420,7 +441,9 @@ export const createIFlowPlugin =
 
                       let currentAccountCount = accounts.length
                       try {
-                        const currentStorage = await AccountManager.loadFromDisk(config.account_selection_strategy)
+                        const currentStorage = await AccountManager.loadFromDisk(
+                          config.account_selection_strategy
+                        )
                         currentAccountCount = currentStorage.getAccountCount()
                       } catch {}
 
@@ -454,7 +477,9 @@ export const createIFlowPlugin =
 
                   let actualAccountCount = accounts.length
                   try {
-                    const finalStorage = await AccountManager.loadFromDisk(config.account_selection_strategy)
+                    const finalStorage = await AccountManager.loadFromDisk(
+                      config.account_selection_strategy
+                    )
                     actualAccountCount = finalStorage.getAccountCount()
                   } catch {}
 
@@ -468,7 +493,8 @@ export const createIFlowPlugin =
 
                 resolve({
                   url: '',
-                  instructions: 'API Key authentication not supported in TUI mode. Use CLI: opencode auth login',
+                  instructions:
+                    'API Key authentication not supported in TUI mode. Use CLI: opencode auth login',
                   method: 'auto',
                   callback: async () => ({ type: 'failed' })
                 })

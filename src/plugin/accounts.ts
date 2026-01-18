@@ -1,12 +1,11 @@
 import { randomBytes } from 'node:crypto'
-import { loadAccounts, saveAccounts, loadUsage, saveUsage } from './storage'
+import { loadAccounts, saveAccounts } from './storage'
 import type {
   ManagedAccount,
   AccountMetadata,
   AccountSelectionStrategy,
   IFlowAuthDetails,
-  RefreshParts,
-  UsageMetadata
+  RefreshParts
 } from './types'
 
 export function generateAccountId(): string {
@@ -27,34 +26,19 @@ export function decodeRefreshToken(encoded: string): RefreshParts {
 
 export class AccountManager {
   private accounts: ManagedAccount[]
-  private usage: Record<string, UsageMetadata>
   private cursor: number
   private strategy: AccountSelectionStrategy
   private lastToastTime = 0
-  private lastUsageToastTime = 0
 
-  constructor(
-    accounts: ManagedAccount[],
-    usage: Record<string, UsageMetadata>,
-    strategy: AccountSelectionStrategy = 'sticky'
-  ) {
+  constructor(accounts: ManagedAccount[], strategy: AccountSelectionStrategy = 'sticky') {
     this.accounts = accounts
-    this.usage = usage
     this.cursor = 0
     this.strategy = strategy
-    for (const a of this.accounts) {
-      const m = this.usage[a.id]
-      if (m) {
-        a.usedCount = m.usedCount
-        a.limitCount = m.limitCount
-      }
-    }
   }
 
   static async loadFromDisk(strategy?: AccountSelectionStrategy): Promise<AccountManager> {
     const s = await loadAccounts()
-    const u = await loadUsage()
-    return new AccountManager(s.accounts, u.usage, strategy || 'sticky')
+    return new AccountManager(s.accounts, strategy || 'sticky')
   }
 
   getAccountCount(): number {
@@ -68,12 +52,6 @@ export class AccountManager {
   shouldShowToast(debounce = 30000): boolean {
     if (Date.now() - this.lastToastTime < debounce) return false
     this.lastToastTime = Date.now()
-    return true
-  }
-
-  shouldShowUsageToast(debounce = 30000): boolean {
-    if (Date.now() - this.lastUsageToastTime < debounce) return false
-    this.lastUsageToastTime = Date.now()
     return true
   }
 
@@ -106,28 +84,14 @@ export class AccountManager {
     } else if (this.strategy === 'round-robin') {
       selected = available[this.cursor % available.length]
       this.cursor = (this.cursor + 1) % available.length
-    } else if (this.strategy === 'lowest-usage') {
-      selected = [...available].sort(
-        (a, b) => (a.usedCount || 0) - (b.usedCount || 0) || (a.lastUsed || 0) - (b.lastUsed || 0)
-      )[0]
     }
 
     if (selected) {
       selected.lastUsed = now
-      selected.usedCount = (selected.usedCount || 0) + 1
       this.cursor = this.accounts.indexOf(selected)
       return selected
     }
     return null
-  }
-
-  updateUsage(id: string, meta: { usedCount: number; limitCount: number }): void {
-    const a = this.accounts.find((x) => x.id === id)
-    if (a) {
-      a.usedCount = meta.usedCount
-      a.limitCount = meta.limitCount
-    }
-    this.usage[id] = { ...meta, lastSync: Date.now() }
   }
 
   addAccount(a: ManagedAccount): void {
@@ -141,7 +105,6 @@ export class AccountManager {
     if (removedIndex === -1) return
 
     this.accounts = this.accounts.filter((x) => x.id !== a.id)
-    delete this.usage[a.id]
 
     if (this.accounts.length === 0) {
       this.cursor = 0
@@ -182,9 +145,8 @@ export class AccountManager {
   }
 
   async saveToDisk(): Promise<void> {
-    const metadata: AccountMetadata[] = this.accounts.map(({ usedCount, limitCount, lastUsed, ...rest }) => rest)
+    const metadata: AccountMetadata[] = this.accounts.map(({ lastUsed, ...rest }) => rest)
     await saveAccounts({ version: 1, accounts: metadata, activeIndex: this.cursor })
-    await saveUsage({ version: 1, usage: this.usage })
   }
 
   toAuthDetails(a: ManagedAccount): IFlowAuthDetails {
