@@ -152,7 +152,7 @@ All configuration options can be overridden via environment variables:
 GLM-4.x models automatically enable thinking mode with special configuration:
 
 ```typescript
-// GLM-4.6 and GLM-4.7 automatically add:
+// GLM-4.6 automatically add:
 {
   "chat_template_kwargs": {
     "enable_thinking": true,

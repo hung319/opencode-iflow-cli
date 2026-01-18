@@ -31,18 +31,12 @@ export const SUPPORTED_MODELS = [
   'kimi-k2-0905',
   'kimi-k2',
   'glm-4.6',
-  'glm-4.7',
   'deepseek-v3.2',
   'deepseek-r1',
   'deepseek-v3'
 ]
 
-export const THINKING_MODELS = [
-  'glm-4.6',
-  'glm-4.7',
-  'qwen3-235b-a22b-thinking-2507',
-  'deepseek-r1'
-]
+export const THINKING_MODELS = ['glm-4.6', 'qwen3-235b-a22b-thinking-2507', 'deepseek-r1']
 
 export function isThinkingModel(model: string): boolean {
   return THINKING_MODELS.some((m) => model.startsWith(m))
