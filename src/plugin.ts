@@ -114,22 +114,31 @@ export const createIFlowPlugin =
 
                 const body = init?.body ? JSON.parse(init.body) : {}
                 const model = body.model || 'qwen3-max'
-                const processedBody = applyThinkingConfig(body, model)
+                let processedBody = applyThinkingConfig(body, model)
+
+                if (processedBody.stream === false && processedBody.stream_options) {
+                  const { stream_options, ...rest } = processedBody
+                  processedBody = rest
+                }
 
                 const apiTimestamp = config.enable_log_api_request ? logger.getTimestamp() : null
 
                 const headers = {
-                  ...init?.headers,
                   Authorization: `Bearer ${acc.apiKey}`,
                   'User-Agent': IFLOW_CONSTANTS.USER_AGENT,
-                  'Content-Type': 'application/json'
+                  'Content-Type': 'application/json',
+                  ...init?.headers
                 }
 
                 if (apiTimestamp) {
+                  const sanitizedHeaders = {
+                    ...headers,
+                    Authorization: `Bearer ${acc.apiKey.substring(0, 10)}...`
+                  }
                   const requestData = {
                     url: typeof input === 'string' ? input : input.url,
                     method: init?.method || 'POST',
-                    headers,
+                    headers: sanitizedHeaders,
                     body: processedBody,
                     account: acc.email
                   }
@@ -164,14 +173,24 @@ export const createIFlowPlugin =
                     account: acc.email
                   }
 
-                  if (apiTimestamp) {
-                    const requestData = {
-                      url: typeof input === 'string' ? input : input.url,
-                      method: init?.method || 'POST',
-                      body: processedBody,
-                      account: acc.email
-                    }
-                    logger.logApiError(requestData, responseData, apiTimestamp)
+                  const sanitizedHeaders = {
+                    ...headers,
+                    Authorization: `Bearer ${acc.apiKey.substring(0, 10)}...`
+                  }
+
+                  const requestData = {
+                    url: typeof input === 'string' ? input : input.url,
+                    method: init?.method || 'POST',
+                    headers: sanitizedHeaders,
+                    body: processedBody,
+                    account: acc.email
+                  }
+
+                  if (config.enable_log_api_request && apiTimestamp) {
+                    logger.logApiResponse(responseData, apiTimestamp)
+                  } else {
+                    const errorTimestamp = logger.getTimestamp()
+                    logger.logApiError(requestData, responseData, errorTimestamp)
                   }
 
                   if (response.status === 429) {
@@ -200,7 +219,7 @@ export const createIFlowPlugin =
                     continue
                   }
 
-                  return response
+                  throw new Error(`iFlow Error: ${response.status} - ${errorText}`)
                 } catch (error: any) {
                   if (isNetworkError(error) && retry < 3) {
                     retry++
@@ -209,20 +228,29 @@ export const createIFlowPlugin =
                     continue
                   }
 
-                  if (apiTimestamp) {
-                    const requestData = {
-                      url: typeof input === 'string' ? input : input.url,
-                      method: init?.method || 'POST',
-                      body: processedBody,
-                      account: acc.email
-                    }
-                    const networkErrorData = {
-                      status: 0,
-                      statusText: 'Network Error',
-                      body: error.message,
-                      account: acc.email
-                    }
-                    logger.logApiError(requestData, networkErrorData, apiTimestamp)
+                  const sanitizedHeaders = {
+                    ...headers,
+                    Authorization: `Bearer ${acc.apiKey.substring(0, 10)}...`
+                  }
+                  const requestData = {
+                    url: typeof input === 'string' ? input : input.url,
+                    method: init?.method || 'POST',
+                    headers: sanitizedHeaders,
+                    body: processedBody,
+                    account: acc.email
+                  }
+                  const networkErrorData = {
+                    status: 0,
+                    statusText: 'Network Error',
+                    body: error.message,
+                    account: acc.email
+                  }
+
+                  if (config.enable_log_api_request && apiTimestamp) {
+                    logger.logApiResponse(networkErrorData, apiTimestamp)
+                  } else {
+                    const errorTimestamp = logger.getTimestamp()
+                    logger.logApiError(requestData, networkErrorData, errorTimestamp)
                   }
 
                   logger.error(`Request failed after ${retry} retries: ${error.message}`, error)
