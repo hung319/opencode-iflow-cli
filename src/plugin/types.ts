@@ -58,5 +58,5 @@ export interface IFlowPluginConfig {
   auth_server_port_range: number
   max_request_iterations: number
   request_timeout_ms: number
-  enable_debug_logging: boolean
+  enable_log_api_request: boolean
 }

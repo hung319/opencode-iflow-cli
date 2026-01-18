@@ -111,7 +111,7 @@ The plugin supports extensive configuration options. Edit `~/.config/opencode/if
   "auth_server_port_range": 10,
   "max_request_iterations": 50,
   "request_timeout_ms": 300000,
-  "enable_debug_logging": false
+  "enable_log_api_request": false
 }
 ```
 
@@ -123,7 +123,7 @@ The plugin supports extensive configuration options. Edit `~/.config/opencode/if
 - `auth_server_port_range`: Number of ports to try (1-100)
 - `max_request_iterations`: Maximum loop iterations to prevent hangs (10-1000)
 - `request_timeout_ms`: Request timeout in milliseconds (60000-600000ms)
-- `enable_debug_logging`: Enable detailed debug logs
+- `enable_log_api_request`: Enable API request/response logging (errors always logged)
 
 ### Environment Variables
 
@@ -135,7 +135,7 @@ All configuration options can be overridden via environment variables:
 - `IFLOW_AUTH_SERVER_PORT_RANGE`
 - `IFLOW_MAX_REQUEST_ITERATIONS`
 - `IFLOW_REQUEST_TIMEOUT_MS`
-- `IFLOW_ENABLE_DEBUG_LOGGING`
+- `IFLOW_ENABLE_LOG_API_REQUEST`
 
 ## Storage
 

@@ -43,7 +43,7 @@ const openBrowser = (url: string) => {
 export const createIFlowPlugin =
   (id: string) =>
   async ({ client, directory }: any) => {
-    const config = await loadConfig()
+    const config = loadConfig()
     const showToast = (message: string, variant: 'info' | 'warning' | 'success' | 'error') => {
       client.tui.showToast({ body: { message, variant } }).catch(() => {})
     }
@@ -116,6 +116,8 @@ export const createIFlowPlugin =
                 const model = body.model || 'qwen3-max'
                 const processedBody = applyThinkingConfig(body, model)
 
+                const apiTimestamp = config.enable_log_api_request ? logger.getTimestamp() : null
+
                 const headers = {
                   ...init?.headers,
                   Authorization: `Bearer ${acc.apiKey}`,
@@ -123,25 +125,65 @@ export const createIFlowPlugin =
                   'Content-Type': 'application/json'
                 }
 
+                if (apiTimestamp) {
+                  const requestData = {
+                    url: typeof input === 'string' ? input : input.url,
+                    method: init?.method || 'POST',
+                    headers,
+                    body: processedBody,
+                    account: acc.email
+                  }
+                  logger.logApiRequest(requestData, apiTimestamp)
+                }
+
                 try {
                   const response = await fetch(input, {
                     ...init,
                     headers,
-                    body: JSON.stringify(processedBody)
+                    body: JSON.stringify(processedBody),
+                    method: init?.method || 'POST'
                   })
 
                   if (response.ok) {
+                    if (apiTimestamp) {
+                      const responseData = {
+                        status: response.status,
+                        statusText: response.statusText,
+                        headers: {}
+                      }
+                      logger.logApiResponse(responseData, apiTimestamp)
+                    }
                     return response
+                  }
+
+                  const errorText = await response.text().catch(() => '')
+                  const responseData = {
+                    status: response.status,
+                    statusText: response.statusText,
+                    body: errorText,
+                    account: acc.email
+                  }
+
+                  if (apiTimestamp) {
+                    const requestData = {
+                      url: typeof input === 'string' ? input : input.url,
+                      method: init?.method || 'POST',
+                      body: processedBody,
+                      account: acc.email
+                    }
+                    logger.logApiError(requestData, responseData, apiTimestamp)
                   }
 
                   if (response.status === 429) {
                     const retryAfter = parseInt(response.headers.get('retry-after') || '60', 10)
+                    logger.warn(`Rate limited on account ${acc.email}, retry after ${retryAfter}s`)
                     am.markRateLimited(acc, retryAfter * 1000)
                     await sleep(1000)
                     continue
                   }
 
                   if (response.status === 401 || response.status === 403) {
+                    logger.warn(`Authentication failed for ${acc.email}: ${response.status}`)
                     am.markUnhealthy(acc, 'Authentication failed', Date.now() + 300000)
                     continue
                   }
@@ -149,9 +191,11 @@ export const createIFlowPlugin =
                   if (response.status >= 500) {
                     if (retry < 3) {
                       retry++
+                      logger.warn(`Server error ${response.status}, retry ${retry}/3`)
                       await sleep(1000 * Math.pow(2, retry))
                       continue
                     }
+                    logger.error(`Server error ${response.status} after ${retry} retries`)
                     am.markUnhealthy(acc, 'Server error', Date.now() + 300000)
                     continue
                   }
@@ -160,9 +204,28 @@ export const createIFlowPlugin =
                 } catch (error: any) {
                   if (isNetworkError(error) && retry < 3) {
                     retry++
+                    logger.warn(`Network error, retry ${retry}/3: ${error.message}`)
                     await sleep(1000 * Math.pow(2, retry))
                     continue
                   }
+
+                  if (apiTimestamp) {
+                    const requestData = {
+                      url: typeof input === 'string' ? input : input.url,
+                      method: init?.method || 'POST',
+                      body: processedBody,
+                      account: acc.email
+                    }
+                    const networkErrorData = {
+                      status: 0,
+                      statusText: 'Network Error',
+                      body: error.message,
+                      account: acc.email
+                    }
+                    logger.logApiError(requestData, networkErrorData, apiTimestamp)
+                  }
+
+                  logger.error(`Request failed after ${retry} retries: ${error.message}`, error)
                   throw error
                 }
               }
@@ -221,6 +284,7 @@ export const createIFlowPlugin =
                         const res = await waitForAuth()
                         return res as IFlowOAuthTokenResult
                       } catch (e: any) {
+                        logger.error(`OAuth authorization failed: ${e.message}`, e)
                         return { type: 'failed' as const, error: e.message }
                       }
                     })()
@@ -277,7 +341,9 @@ export const createIFlowPlugin =
                         config.account_selection_strategy
                       )
                       currentAccountCount = currentStorage.getAccountCount()
-                    } catch {}
+                    } catch (e: any) {
+                      logger.warn(`Failed to load account count: ${e.message}`)
+                    }
 
                     const addAnother = await promptAddAnotherAccount(currentAccountCount)
                     if (!addAnother) {
@@ -301,7 +367,9 @@ export const createIFlowPlugin =
                       config.account_selection_strategy
                     )
                     actualAccountCount = finalStorage.getAccountCount()
-                  } catch {}
+                  } catch (e: any) {
+                    logger.warn(`Failed to load account count: ${e.message}`)
+                  }
 
                   return resolve({
                     url: '',
@@ -445,7 +513,9 @@ export const createIFlowPlugin =
                           config.account_selection_strategy
                         )
                         currentAccountCount = currentStorage.getAccountCount()
-                      } catch {}
+                      } catch (e: any) {
+                        logger.warn(`Failed to load account count: ${e.message}`)
+                      }
 
                       const addAnother = await promptAddAnotherAccount(currentAccountCount)
                       if (!addAnother) {
@@ -481,7 +551,9 @@ export const createIFlowPlugin =
                       config.account_selection_strategy
                     )
                     actualAccountCount = finalStorage.getAccountCount()
-                  } catch {}
+                  } catch (e: any) {
+                    logger.warn(`Failed to load account count: ${e.message}`)
+                  }
 
                   return resolve({
                     url: '',

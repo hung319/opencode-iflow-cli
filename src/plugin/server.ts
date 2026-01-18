@@ -110,12 +110,15 @@ export async function startOAuthServer(
     throw new Error('Failed to start OAuth callback server')
   }
 
-  timeoutHandle = setTimeout(() => {
-    if (server?.listening) {
-      rejectAuth(new Error('OAuth timeout: No response after 10 minutes'))
-      server.close()
-    }
-  }, 10 * 60 * 1000)
+  timeoutHandle = setTimeout(
+    () => {
+      if (server?.listening) {
+        rejectAuth(new Error('OAuth timeout: No response after 10 minutes'))
+        server.close()
+      }
+    },
+    10 * 60 * 1000
+  )
 
   return {
     url: authUrl,
