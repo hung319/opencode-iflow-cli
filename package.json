@@ -1,6 +1,6 @@
 {
   "name": "@zhafron/opencode-iflow-auth",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "OpenCode plugin for iFlow providing access to Claude, GPT, Gemini, DeepSeek, and Qwen models",
   "type": "module",
   "main": "dist/index.js",

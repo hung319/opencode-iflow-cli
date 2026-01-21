@@ -486,9 +486,9 @@ export const createIFlowPlugin =
               })
           },
           {
-            id: 'apikey',
+            id: 'api',
             label: 'iFlow API Key',
-            type: 'apikey',
+            type: 'api',
             authorize: async (inputs?: any) =>
               new Promise(async (resolve) => {
                 if (inputs) {
