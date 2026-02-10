@@ -1,117 +1,67 @@
-# OpenCode iFlow Auth Plugin
-[![npm version](https://img.shields.io/npm/v/@zhafron/opencode-iflow-auth)](https://www.npmjs.com/package/@zhafron/opencode-iflow-auth)
-[![npm downloads](https://img.shields.io/npm/dm/@zhafron/opencode-iflow-auth)](https://www.npmjs.com/package/@zhafron/opencode-iflow-auth)
-[![license](https://img.shields.io/npm/l/@zhafron/opencode-iflow-auth)](https://www.npmjs.com/package/@zhafron/opencode-iflow-auth)
+# OpenCode iFlow CLI Plugin
 
-OpenCode plugin for iFlow.cn providing access to Qwen, DeepSeek, Kimi, GLM, and iFlow ROME models with dual authentication support.
+[![npm version](https://img.shields.io/npm/v/@hung319/opencode-iflow-cli)](https://www.npmjs.com/package/@hung319/opencode-iflow-cli)
+[![npm downloads](https://img.shields.io/npm/dm/@hung319/opencode-iflow-cli)](https://www.npmjs.com/package/@hung319/opencode-iflow-cli)
+[![license](https://img.shields.io/npm/l/@hung319/opencode-iflow-cli)](https://www.npmjs.com/package/@hung319/opencode-iflow-cli)
+
+OpenCode plugin for iFlow.cn providing access to Qwen, DeepSeek, Kimi, GLM, and iFlow ROME models with auto-configuration and headless OAuth support.
 
 ## Features
 
-- Dual authentication: OAuth 2.0 (PKCE) and API Key support.
-- Multi-account rotation with sticky and round-robin strategies.
-- Automated token refresh and rate limit handling with exponential backoff.
-- Native thinking mode support for GLM-4.x models.
-- Configurable request timeout and iteration limits to prevent hangs.
-- Automatic port selection for OAuth callback server to avoid conflicts.
+- **Auto-configuration**: Models are automatically configured, no manual setup needed.
+- **Dual authentication**: OAuth 2.0 (PKCE) and API Key support.
+- **Headless support**: Works in SSH, containers, and CI environments with manual code input.
+- **Multi-account rotation**: Sticky and round-robin strategies for account selection.
+- **Automated token refresh** and rate limit handling with exponential backoff.
+- **Native thinking mode support** for GLM-4.x and DeepSeek R1 models.
+- **Flexible OAuth**: Automatic browser redirect OR manual code input - both work!
 
 ## Installation
 
-Add the plugin to your `opencode.json` or `opencode.jsonc`:
+```bash
+npm install -g @hung319/opencode-iflow-cli
+```
+
+Or add to your `opencode.json`:
 
 ```json
 {
-  "plugin": ["@zhafron/opencode-iflow-auth"],
-  "provider": {
-    "iflow": {
-      "models": {
-        "iflow-rome-30ba3b": {
-          "name": "iFlow ROME 30B",
-          "limit": { "context": 256000, "output": 64000 },
-          "modalities": { "input": ["text"], "output": ["text"] }
-        },
-        "qwen3-coder-plus": {
-          "name": "Qwen3 Coder Plus",
-          "limit": { "context": 1000000, "output": 64000 },
-          "modalities": { "input": ["text"], "output": ["text"] }
-        },
-        "qwen3-max": {
-          "name": "Qwen3 Max",
-          "limit": { "context": 256000, "output": 32000 },
-          "modalities": { "input": ["text"], "output": ["text"] }
-        },
-        "qwen3-vl-plus": {
-          "name": "Qwen3 VL Plus",
-          "limit": { "context": 256000, "output": 32000 },
-          "modalities": { "input": ["text", "image"], "output": ["text"] }
-        },
-        "qwen3-235b-a22b-thinking-2507": {
-          "name": "Qwen3 235B Thinking",
-          "limit": { "context": 256000, "output": 64000 },
-          "modalities": { "input": ["text"], "output": ["text"] }
-        },
-        "kimi-k2": {
-          "name": "Kimi K2",
-          "limit": { "context": 128000, "output": 64000 },
-          "modalities": { "input": ["text"], "output": ["text"] }
-        },
-        "kimi-k2-0905": {
-          "name": "Kimi K2 0905",
-          "limit": { "context": 256000, "output": 64000 },
-          "modalities": { "input": ["text"], "output": ["text"] }
-        },
-        "glm-4.6": {
-          "name": "GLM-4.6 Thinking",
-          "limit": { "context": 200000, "output": 128000 },
-          "modalities": { "input": ["text", "image"], "output": ["text"] },
-          "variants": {
-            "low": { "thinkingConfig": { "thinkingBudget": 1024 } },
-            "medium": { "thinkingConfig": { "thinkingBudget": 8192 } },
-            "max": { "thinkingConfig": { "thinkingBudget": 32768 } }
-          }
-        },
-        "deepseek-v3": {
-          "name": "DeepSeek V3",
-          "limit": { "context": 128000, "output": 32000 },
-          "modalities": { "input": ["text"], "output": ["text"] }
-        },
-        "deepseek-v3.2": {
-          "name": "DeepSeek V3.2",
-          "limit": { "context": 128000, "output": 64000 },
-          "modalities": { "input": ["text"], "output": ["text"] }
-        },
-        "deepseek-r1": {
-          "name": "DeepSeek R1",
-          "limit": { "context": 128000, "output": 32000 },
-          "modalities": { "input": ["text"], "output": ["text"] },
-          "variants": {
-            "low": { "thinkingConfig": { "thinkingBudget": 1024 } },
-            "medium": { "thinkingConfig": { "thinkingBudget": 8192 } },
-            "max": { "thinkingConfig": { "thinkingBudget": 32768 } }
-          }
-        },
-        "qwen3-32b": {
-          "name": "Qwen3 32B",
-          "limit": { "context": 128000, "output": 32000 },
-          "modalities": { "input": ["text"], "output": ["text"] }
-        }
-      }
-    }
-  }
+  "plugin": ["@hung319/opencode-iflow-cli"]
 }
 ```
 
-## Setup
+That's it! Models are automatically configured. No manual provider configuration needed.
 
-1. Run `opencode auth login`.
-2. Select `Other`, type `iflow`, and press enter.
-3. Choose authentication method:
-   - **OAuth 2.0**: Follow browser flow for secure token-based authentication.
-   - **API Key**: Enter your iFlow API key (starts with `sk-`).
-4. Configuration template will be automatically created at `~/.config/opencode/iflow.json` on first load.
+## Quick Start
+
+### Interactive Mode (with browser)
+
+```bash
+opencode auth login
+# Select: Other → type "iflow" → Enter
+# Choose: OAuth 2.0 or API Key
+```
+
+Browser will open automatically. Complete authentication and you're done!
+
+### Headless Mode (SSH, CI, Containers)
+
+```bash
+opencode auth login
+# Select: Other → type "iflow" → Enter
+# Choose: OAuth 2.0
+```
+
+1. Open the displayed URL in your local browser.
+2. Complete authentication on iFlow.cn.
+3. Copy the callback URL or authorization code.
+4. Paste it back into the terminal.
+
+The plugin automatically detects headless environments and adapts accordingly.
 
 ## Configuration
 
-The plugin supports extensive configuration options. Edit `~/.config/opencode/iflow.json`:
+Optional configuration file at `~/.config/opencode/iflow.json`:
 
 ```json
 {
@@ -127,102 +77,108 @@ The plugin supports extensive configuration options. Edit `~/.config/opencode/if
 
 ### Configuration Options
 
-- `default_auth_method`: Default authentication method (`oauth`, `apikey`)
-- `account_selection_strategy`: Account rotation strategy (`sticky`, `round-robin`)
-- `auth_server_port_start`: Starting port for OAuth callback server (1024-65535)
-- `auth_server_port_range`: Number of ports to try (1-100)
-- `max_request_iterations`: Maximum loop iterations to prevent hangs (10-1000)
-- `request_timeout_ms`: Request timeout in milliseconds (60000-600000ms)
-- `enable_log_api_request`: Enable API request/response logging (errors always logged)
+| Option | Description | Default |
+|--------|-------------|---------|
+| `default_auth_method` | Auth method (`oauth`, `apikey`) | `oauth` |
+| `account_selection_strategy` | Rotation strategy (`sticky`, `round-robin`) | `round-robin` |
+| `auth_server_port_start` | OAuth callback server starting port | `8087` |
+| `auth_server_port_range` | Number of ports to try | `10` |
+| `max_request_iterations` | Max iterations to prevent hangs | `50` |
+| `request_timeout_ms` | Request timeout in milliseconds | `300000` |
+| `enable_log_api_request` | Enable request/response logging | `false` |
 
 ### Environment Variables
 
-All configuration options can be overridden via environment variables:
+All config options can be overridden via environment variables:
 
-- `IFLOW_DEFAULT_AUTH_METHOD`
-- `IFLOW_ACCOUNT_SELECTION_STRATEGY`
-- `IFLOW_AUTH_SERVER_PORT_START`
-- `IFLOW_AUTH_SERVER_PORT_RANGE`
-- `IFLOW_MAX_REQUEST_ITERATIONS`
-- `IFLOW_REQUEST_TIMEOUT_MS`
-- `IFLOW_ENABLE_LOG_API_REQUEST`
+```bash
+export IFLOW_DEFAULT_AUTH_METHOD=oauth
+export IFLOW_ACCOUNT_SELECTION_STRATEGY=round-robin
+export IFLOW_AUTH_SERVER_PORT_START=8087
+export IFLOW_MAX_REQUEST_ITERATIONS=50
+export IFLOW_REQUEST_TIMEOUT_MS=300000
+```
 
-## Storage
+## Supported Models
+
+Models are automatically configured when you install the plugin:
+
+| Model | Context | Output | Features |
+|-------|---------|--------|----------|
+| `iflow-rome-30ba3b` | 256K | 64K | iFlow ROME 30B |
+| `qwen3-coder-plus` | 1M | 64K | Qwen3 Coder Plus |
+| `qwen3-max` | 256K | 32K | Qwen3 Max |
+| `qwen3-vl-plus` | 256K | 32K | Vision support |
+| `qwen3-235b-a22b-thinking-2507` | 256K | 64K | Thinking mode |
+| `kimi-k2` | 128K | 64K | Kimi K2 |
+| `kimi-k2-0905` | 256K | 64K | Kimi K2 0905 |
+| `glm-4.6` | 200K | 128K | Thinking + Vision |
+| `deepseek-v3` | 128K | 32K | DeepSeek V3 |
+| `deepseek-v3.2` | 128K | 64K | DeepSeek V3.2 |
+| `deepseek-r1` | 128K | 32K | Reasoning model |
+| `qwen3-32b` | 128K | 32K | Qwen3 32B |
+
+## Data Storage
 
 **Linux/macOS:**
 - Credentials: `~/.config/opencode/iflow-accounts.json`
-- Plugin Config: `~/.config/opencode/iflow.json`
+- Config: `~/.config/opencode/iflow.json`
 
 **Windows:**
 - Credentials: `%APPDATA%\opencode\iflow-accounts.json`
-- Plugin Config: `%APPDATA%\opencode\iflow.json`
+- Config: `%APPDATA%\opencode\iflow.json`
 
 ## Thinking Models
 
-iFlow supports thinking models with customizable thinking budgets via variants:
-
 ### GLM-4.6
 
-Automatically enables thinking mode with configurable budget:
+Variants with thinking budgets:
 
 ```json
 {
-  "variants": {
-    "low": { "thinkingConfig": { "thinkingBudget": 1024 } },
-    "medium": { "thinkingConfig": { "thinkingBudget": 8192 } },
-    "max": { "thinkingConfig": { "thinkingBudget": 32768 } }
-  }
+  "model": "glm-4.6",
+  "variant": "medium"
 }
 ```
 
-The plugin automatically transforms requests to:
-
-```typescript
-{
-  "chat_template_kwargs": {
-    "enable_thinking": true,
-    "clear_thinking": false
-  },
-  "thinking_budget": 8192  // from variant config
-}
-```
+Available variants:
+- `low`: 1024 thinking tokens
+- `medium`: 8192 thinking tokens
+- `max`: 32768 thinking tokens
 
 ### DeepSeek R1
 
-Supports thinking budget control via variants:
-
 ```json
 {
-  "variants": {
-    "low": { "thinkingConfig": { "thinkingBudget": 1024 } },
-    "medium": { "thinkingConfig": { "thinkingBudget": 8192 } },
-    "max": { "thinkingConfig": { "thinkingBudget": 32768 } }
-  }
+  "model": "deepseek-r1",
+  "variant": "medium"
 }
 ```
 
-The plugin automatically adds `thinking_budget` parameter to requests.
+Same variant options as GLM-4.6.
 
-### Response Format
+## Headless Environment Detection
 
-Both models return reasoning content in the response:
+The plugin automatically detects headless environments via:
+- `SSH_CONNECTION`, `SSH_CLIENT`, `SSH_TTY`
+- `OPENCODE_HEADLESS`
+- `CI`, `CONTAINER`
+- Missing `DISPLAY` on Linux
 
-```json
-{
-  "choices": [{
-    "message": {
-      "role": "assistant",
-      "content": "The answer is 4.",
-      "reasoning_content": "Let me think step by step..."
-    }
-  }],
-  "usage": {
-    "completion_tokens_details": {
-      "reasoning_tokens": 1094
-    }
-  }
-}
-```
+In headless mode:
+- OAuth URL is displayed for manual opening
+- Browser auto-open is disabled
+- Manual code input is prompted
+
+## Links
+
+- **NPM Package**: https://www.npmjs.com/package/@hung319/opencode-iflow-cli
+- **GitHub Repository**: https://github.com/hung319/opencode-iflow-cli
+- **Issues**: https://github.com/hung319/opencode-iflow-cli/issues
+
+## License
+
+MIT
 
 ## Disclaimer
 

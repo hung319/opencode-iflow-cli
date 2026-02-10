@@ -26,6 +26,10 @@
   ],
   "author": "hung319",
   "license": "MIT",
+  "homepage": "https://www.npmjs.com/package/@hung319/opencode-iflow-cli",
+  "bugs": {
+    "url": "https://github.com/hung319/opencode-iflow-cli/issues"
+  },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hung319/opencode-iflow-cli.git"
