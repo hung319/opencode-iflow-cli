@@ -3,7 +3,7 @@ import { exec } from 'node:child_process'
 import { AccountManager, generateAccountId } from './plugin/accounts'
 import { accessTokenExpired } from './plugin/token'
 import { refreshAccessToken } from './plugin/token'
-import { authorizeIFlowOAuth } from './iflow/oauth'
+import { authorizeIFlowOAuth, exchangeOAuthCode } from './iflow/oauth'
 import { validateApiKey } from './iflow/apikey'
 import { startOAuthServer } from './plugin/server'
 import { IFlowTokenRefreshError } from './plugin/errors'
@@ -12,11 +12,12 @@ import {
   promptLoginMode,
   promptAuthMethod,
   promptApiKey,
-  promptEmail
+  promptEmail,
+  promptOAuthCallback
 } from './plugin/cli'
 import type { ManagedAccount } from './plugin/types'
 import type { IFlowOAuthTokenResult } from './iflow/oauth'
-import { IFLOW_CONSTANTS, applyThinkingConfig } from './constants'
+import { IFLOW_CONSTANTS, applyThinkingConfig, SUPPORTED_MODELS } from './constants'
 import * as logger from './plugin/logger'
 
 const IFLOW_PROVIDER_ID = 'iflow'
@@ -40,6 +41,134 @@ const openBrowser = (url: string) => {
   })
 }
 
+/**
+ * Detect if running in headless environment (SSH, container, CI, etc.)
+ */
+function isHeadlessEnvironment(): boolean {
+  return !!(
+    process.env.SSH_CONNECTION ||
+    process.env.SSH_CLIENT ||
+    process.env.SSH_TTY ||
+    process.env.OPENCODE_HEADLESS ||
+    process.env.CI ||
+    process.env.CONTAINER ||
+    (!process.env.DISPLAY && process.platform !== 'darwin' && process.platform !== 'win32')
+  )
+}
+
+/**
+ * Parse OAuth callback input - can be full URL or just the code
+ */
+function parseOAuthCallbackInput(input: string): { code?: string; state?: string } {
+  const trimmed = input.trim()
+  if (!trimmed) {
+    return {}
+  }
+
+  // If it's a URL, extract code and state from query params
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const url = new URL(trimmed)
+      return {
+        code: url.searchParams.get('code') || undefined,
+        state: url.searchParams.get('state') || undefined,
+      }
+    } catch {
+      return {}
+    }
+  }
+
+  // If it looks like query params (code=...&state=...)
+  const candidate = trimmed.startsWith('?') ? trimmed.slice(1) : trimmed
+  if (candidate.includes('=')) {
+    const params = new URLSearchParams(candidate)
+    const code = params.get('code') || undefined
+    const state = params.get('state') || undefined
+    if (code || state) {
+      return { code, state }
+    }
+  }
+
+  // Assume it's just the code
+  return { code: trimmed }
+}
+
+/**
+ * Default model configurations for iFlow
+ */
+const DEFAULT_MODELS: Record<string, any> = {
+  'iflow-rome-30ba3b': {
+    name: 'iFlow ROME 30B',
+    limit: { context: 256000, output: 64000 },
+    modalities: { input: ['text'], output: ['text'] }
+  },
+  'qwen3-coder-plus': {
+    name: 'Qwen3 Coder Plus',
+    limit: { context: 1000000, output: 64000 },
+    modalities: { input: ['text'], output: ['text'] }
+  },
+  'qwen3-max': {
+    name: 'Qwen3 Max',
+    limit: { context: 256000, output: 32000 },
+    modalities: { input: ['text'], output: ['text'] }
+  },
+  'qwen3-vl-plus': {
+    name: 'Qwen3 VL Plus',
+    limit: { context: 256000, output: 32000 },
+    modalities: { input: ['text', 'image'], output: ['text'] }
+  },
+  'qwen3-235b-a22b-thinking-2507': {
+    name: 'Qwen3 235B Thinking',
+    limit: { context: 256000, output: 64000 },
+    modalities: { input: ['text'], output: ['text'] }
+  },
+  'kimi-k2': {
+    name: 'Kimi K2',
+    limit: { context: 128000, output: 64000 },
+    modalities: { input: ['text'], output: ['text'] }
+  },
+  'kimi-k2-0905': {
+    name: 'Kimi K2 0905',
+    limit: { context: 256000, output: 64000 },
+    modalities: { input: ['text'], output: ['text'] }
+  },
+  'glm-4.6': {
+    name: 'GLM-4.6 Thinking',
+    limit: { context: 200000, output: 128000 },
+    modalities: { input: ['text', 'image'], output: ['text'] },
+    variants: {
+      low: { thinkingConfig: { thinkingBudget: 1024 } },
+      medium: { thinkingConfig: { thinkingBudget: 8192 } },
+      max: { thinkingConfig: { thinkingBudget: 32768 } }
+    }
+  },
+  'deepseek-v3': {
+    name: 'DeepSeek V3',
+    limit: { context: 128000, output: 32000 },
+    modalities: { input: ['text'], output: ['text'] }
+  },
+  'deepseek-v3.2': {
+    name: 'DeepSeek V3.2',
+    limit: { context: 128000, output: 64000 },
+    modalities: { input: ['text'], output: ['text'] }
+  },
+  'deepseek-r1': {
+    name: 'DeepSeek R1',
+    limit: { context: 128000, output: 32000 },
+    modalities: { input: ['text'], output: ['text'] },
+    variants: {
+      low: { thinkingConfig: { thinkingBudget: 1024 } },
+      medium: { thinkingConfig: { thinkingBudget: 8192 } },
+      max: { thinkingConfig: { thinkingBudget: 32768 } }
+    }
+  },
+  'qwen3-32b': {
+    name: 'Qwen3 32B',
+    limit: { context: 128000, output: 32000 },
+    modalities: { input: ['text'], output: ['text'] }
+  }
+}
+
 export const createIFlowPlugin =
   (id: string) =>
   async ({ client, directory }: any) => {
@@ -51,12 +180,18 @@ export const createIFlowPlugin =
     return {
       auth: {
         provider: id,
-        loader: async (getAuth: any) => {
+        loader: async (getAuth: any, provider: any) => {
           await getAuth()
           const am = await AccountManager.loadFromDisk(config.account_selection_strategy)
+
+          // Auto-configure models if not already configured
+          const configuredModels = provider?.models || {}
+          const mergedModels = { ...DEFAULT_MODELS, ...configuredModels }
+
           return {
             apiKey: '',
             baseURL: IFLOW_CONSTANTS.BASE_URL,
+            models: mergedModels,
             async fetch(input: any, init?: any): Promise<Response> {
               const url = typeof input === 'string' ? input : input.url
 
@@ -291,6 +426,71 @@ export const createIFlowPlugin =
             type: 'oauth',
             authorize: async (inputs?: any) =>
               new Promise(async (resolve) => {
+                const isHeadless = isHeadlessEnvironment()
+
+                /**
+                 * Perform OAuth with local server + manual code input fallback
+                 * Always starts server, always shows URL, always allows manual input
+                 */
+                const performOAuth = async (): Promise<IFlowOAuthTokenResult | { type: 'failed'; error: string }> => {
+                  try {
+                    const authData = await authorizeIFlowOAuth(config.auth_server_port_start)
+
+                    // Start local OAuth server (always)
+                    const server = await startOAuthServer(
+                      authData.authUrl,
+                      authData.state,
+                      authData.redirectUri,
+                      config.auth_server_port_start,
+                      config.auth_server_port_range
+                    )
+
+                    console.log('\n=== iFlow OAuth Authentication ===\n')
+                    console.log('OAuth URL:')
+                    console.log(authData.authUrl)
+                    console.log('')
+
+                    // Open browser automatically if not headless
+                    if (!isHeadless) {
+                      console.log('Opening browser automatically...')
+                      openBrowser(authData.authUrl)
+                    }
+
+                    console.log(`\nLocal callback server running on port ${server.actualPort}`)
+                    console.log('Waiting for authentication...')
+                    console.log('\n(If the browser does not open automatically, open the URL above manually)')
+                    console.log('(You can also paste the callback URL or authorization code below)\n')
+
+                    // Race between server callback and manual code input
+                    const manualInputPromise = (async (): Promise<IFlowOAuthTokenResult> => {
+                      const callbackInput = await promptOAuthCallback()
+                      const { code, state } = parseOAuthCallbackInput(callbackInput)
+
+                      if (!code) {
+                        throw new Error('No authorization code provided')
+                      }
+
+                      if (state && state !== authData.state) {
+                        throw new Error('State mismatch - possible CSRF attempt')
+                      }
+
+                      // Close server since we got manual input
+                      server.close()
+                      return await server.exchangeCode(code)
+                    })()
+
+                    const result = await Promise.race([
+                      server.waitForAuth(),
+                      manualInputPromise
+                    ])
+
+                    return result
+                  } catch (e: any) {
+                    logger.error(`OAuth authorization failed: ${e.message}`, e)
+                    return { type: 'failed' as const, error: e.message }
+                  }
+                }
+
                 if (inputs) {
                   const accounts: IFlowOAuthTokenResult[] = []
                   let startFresh = true
@@ -317,36 +517,14 @@ export const createIFlowPlugin =
                   while (true) {
                     console.log(`\n=== iFlow OAuth (Account ${accounts.length + 1}) ===\n`)
 
-                    const result = await (async (): Promise<
-                      IFlowOAuthTokenResult | { type: 'failed'; error: string }
-                    > => {
-                      try {
-                        const authData = await authorizeIFlowOAuth(config.auth_server_port_start)
-                        const { url, redirectUri, waitForAuth } = await startOAuthServer(
-                          authData.authUrl,
-                          authData.state,
-                          authData.redirectUri,
-                          config.auth_server_port_start,
-                          config.auth_server_port_range
-                        )
-
-                        console.log('OAuth URL:\n' + url + '\n')
-                        openBrowser(url)
-
-                        const res = await waitForAuth()
-                        return res as IFlowOAuthTokenResult
-                      } catch (e: any) {
-                        logger.error(`OAuth authorization failed: ${e.message}`, e)
-                        return { type: 'failed' as const, error: e.message }
-                      }
-                    })()
+                    const result = await performOAuth()
 
                     if ('type' in result && result.type === 'failed') {
                       if (accounts.length === 0) {
                         return resolve({
                           url: '',
                           instructions: `Authentication failed: ${result.error}`,
-                          method: 'auto',
+                          method: 'code',
                           callback: async () => ({ type: 'failed' })
                         })
                       }
@@ -408,7 +586,7 @@ export const createIFlowPlugin =
                     return resolve({
                       url: '',
                       instructions: 'Authentication cancelled',
-                      method: 'auto',
+                      method: 'code',
                       callback: async () => ({ type: 'failed' })
                     })
                   }
@@ -426,28 +604,46 @@ export const createIFlowPlugin =
                   return resolve({
                     url: '',
                     instructions: `Multi-account setup complete (${actualAccountCount} account(s)).`,
-                    method: 'auto',
+                    method: 'code',
                     callback: async () => ({ type: 'success', key: primary.apiKey })
                   })
                 }
 
+                // TUI mode (no inputs) - return code-based auth that works for both headless and non-headless
                 try {
                   const authData = await authorizeIFlowOAuth(config.auth_server_port_start)
-                  const { url, redirectUri, waitForAuth } = await startOAuthServer(
+
+                  // Start server in background
+                  const server = await startOAuthServer(
                     authData.authUrl,
                     authData.state,
                     authData.redirectUri,
                     config.auth_server_port_start,
                     config.auth_server_port_range
                   )
-                  openBrowser(url)
+
+                  // Open browser if not headless
+                  if (!isHeadless) {
+                    openBrowser(authData.authUrl)
+                  }
+
                   resolve({
-                    url,
-                    instructions: `Open this URL to continue: ${url}`,
-                    method: 'auto',
-                    callback: async () => {
+                    url: authData.authUrl,
+                    instructions: `Open this URL to authenticate:\n${authData.authUrl}\n\nA local callback server is running on port ${server.actualPort}.\nYou can either wait for automatic redirect (if browser opened) or paste the callback URL/code below.`,
+                    method: 'code',
+                    callback: async (callbackInput: string) => {
                       try {
-                        const res = await waitForAuth()
+                        const { code, state } = parseOAuthCallbackInput(callbackInput)
+
+                        if (!code) {
+                          return { type: 'failed', error: 'Missing authorization code' }
+                        }
+
+                        if (state && state !== authData.state) {
+                          return { type: 'failed', error: 'State mismatch - possible CSRF attempt' }
+                        }
+
+                        const res = await server.exchangeCode(code)
                         const am = await AccountManager.loadFromDisk(
                           config.account_selection_strategy
                         )
@@ -469,7 +665,7 @@ export const createIFlowPlugin =
                       } catch (e: any) {
                         logger.error(`Login failed: ${e.message}`, e)
                         showToast(`Login failed: ${e.message}`, 'error')
-                        return { type: 'failed' }
+                        return { type: 'failed', error: e.message }
                       }
                     }
                   })
@@ -479,7 +675,7 @@ export const createIFlowPlugin =
                   resolve({
                     url: '',
                     instructions: 'Authorization failed',
-                    method: 'auto',
+                    method: 'code',
                     callback: async () => ({ type: 'failed' })
                   })
                 }

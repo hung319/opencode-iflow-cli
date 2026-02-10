@@ -5,7 +5,10 @@ import { exchangeOAuthCode } from '../iflow/oauth'
 export interface OAuthServerResult {
   url: string
   redirectUri: string
+  actualPort: number
   waitForAuth: () => Promise<IFlowOAuthTokenResult>
+  exchangeCode: (code: string) => Promise<IFlowOAuthTokenResult>
+  close: () => void
 }
 
 export async function startOAuthServer(
@@ -120,9 +123,33 @@ export async function startOAuthServer(
     10 * 60 * 1000
   )
 
+  // Function to manually exchange code (for headless/paste mode)
+  const exchangeCode = async (code: string): Promise<IFlowOAuthTokenResult> => {
+    try {
+      const result = await exchangeOAuthCode(code, redirectUri)
+      clearTimeout(timeoutHandle)
+      resolveAuth(result)
+      setTimeout(() => server?.close(), 1000)
+      return result
+    } catch (error: any) {
+      clearTimeout(timeoutHandle)
+      rejectAuth(error)
+      setTimeout(() => server?.close(), 1000)
+      throw error
+    }
+  }
+
+  const close = () => {
+    clearTimeout(timeoutHandle)
+    server?.close()
+  }
+
   return {
     url: authUrl,
     redirectUri,
-    waitForAuth: () => authPromise
+    actualPort,
+    waitForAuth: () => authPromise,
+    exchangeCode,
+    close
   }
 }

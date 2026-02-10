@@ -89,3 +89,14 @@ export async function promptEmail(): Promise<string> {
     rl.close()
   }
 }
+
+export async function promptOAuthCallback(): Promise<string> {
+  const rl = createInterface({ input, output })
+  try {
+    console.log('')
+    const answer = await rl.question('Paste the callback URL or authorization code: ')
+    return answer.trim()
+  } finally {
+    rl.close()
+  }
+}
