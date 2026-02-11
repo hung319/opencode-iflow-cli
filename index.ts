@@ -13,4 +13,4 @@ const plugin: Plugin = async (input) => {
 }
 
 export default plugin
-export { plugin as iflow }
+export { plugin as iflow, plugin as 'iflow-oauth' }

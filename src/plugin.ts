@@ -20,7 +20,7 @@ import type { IFlowOAuthTokenResult } from './iflow/oauth'
 import { IFLOW_CONSTANTS, applyThinkingConfig, SUPPORTED_MODELS } from './constants'
 import * as logger from './plugin/logger'
 
-export const IFLOW_PROVIDER_ID = 'iflow'
+export const IFLOW_PROVIDER_ID = 'iflow-oauth'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const isNetworkError = (e: any) =>
