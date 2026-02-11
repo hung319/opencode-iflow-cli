@@ -1,4 +1,4 @@
-import type { Plugin, Hooks, Config } from '@opencode-ai/plugin'
+import type { Plugin, Hooks } from '@opencode-ai/plugin'
 
 export { createIFlowPlugin, IFLOW_PROVIDER_ID } from './src/plugin.js'
 export { authorizeIFlowOAuth } from './src/iflow/oauth.js'
