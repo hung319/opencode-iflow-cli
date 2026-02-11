@@ -30,7 +30,7 @@ Or add to your `opencode.json`:
 }
 ```
 
-Then select **"iFlow"** from the provider list when logging in.
+Then select **"iflow-oauth"** from the provider list when logging in (this is the enhanced iFlow with OAuth support).
 
 That's it! Models are automatically configured. No manual provider configuration needed.
 
@@ -40,7 +40,7 @@ That's it! Models are automatically configured. No manual provider configuration
 
 ```bash
 opencode auth login
-# Select: iFlow → Enter
+# Select: iflow-oauth → Enter  
 # Choose: OAuth 2.0 or API Key
 ```
 
@@ -50,7 +50,7 @@ Browser will open automatically. Complete authentication and you're done!
 
 ```bash
 opencode auth login
-# Select: iFlow → Enter
+# Select: iflow-oauth → Enter
 # Choose: OAuth 2.0
 ```
 
