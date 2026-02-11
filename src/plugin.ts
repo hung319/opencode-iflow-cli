@@ -20,7 +20,7 @@ import type { IFlowOAuthTokenResult } from './iflow/oauth'
 import { IFLOW_CONSTANTS, applyThinkingConfig, SUPPORTED_MODELS } from './constants'
 import * as logger from './plugin/logger'
 
-const IFLOW_PROVIDER_ID = 'iflow'
+export const IFLOW_PROVIDER_ID = 'iflow'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const isNetworkError = (e: any) =>
@@ -423,7 +423,7 @@ export const createIFlowPlugin =
           {
             id: 'oauth',
             label: 'iFlow OAuth 2.0',
-            type: 'oauth',
+            type: 'oauth' as const,
             authorize: async (inputs?: any) =>
               new Promise(async (resolve) => {
                 const isHeadless = isHeadlessEnvironment()
@@ -684,7 +684,7 @@ export const createIFlowPlugin =
           {
             id: 'api',
             label: 'iFlow API Key',
-            type: 'api',
+            type: 'api' as const,
             authorize: async (inputs?: any) =>
               new Promise(async (resolve) => {
                 if (inputs) {
