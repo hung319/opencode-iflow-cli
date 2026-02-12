@@ -8,6 +8,7 @@ OpenCode plugin for iFlow.cn providing access to Qwen, DeepSeek, Kimi, GLM, and 
 
 ## Features
 
+- **Auto-update models**: Automatically fetches latest models from iFlow API every time OpenCode runs
 - **Auto-configuration**: Models are automatically configured, no manual setup needed.
 - **Dual authentication**: OAuth 2.0 (PKCE) and API Key support.
 - **Headless support**: Works in SSH, containers, and CI environments with manual code input.
@@ -30,7 +31,7 @@ Or add to your `opencode.json` with specific version:
 }
 ```
 
-Then select **"iflow-oauth"** from the provider list when logging in (this is the enhanced iFlow with OAuth support).
+Then select **"iflow"** from the provider list when logging in.
 
 That's it! Models are automatically configured. No manual provider configuration needed.
 

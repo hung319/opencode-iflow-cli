@@ -5,6 +5,7 @@ import { accessTokenExpired } from './plugin/token'
 import { refreshAccessToken } from './plugin/token'
 import { authorizeIFlowOAuth, exchangeOAuthCode } from './iflow/oauth'
 import { validateApiKey } from './iflow/apikey'
+import { getModels } from './iflow/models'
 import { startOAuthServer } from './plugin/server'
 import { IFlowTokenRefreshError } from './plugin/errors'
 import {
@@ -20,7 +21,7 @@ import type { IFlowOAuthTokenResult } from './iflow/oauth'
 import { IFLOW_CONSTANTS, applyThinkingConfig, SUPPORTED_MODELS } from './constants'
 import * as logger from './plugin/logger'
 
-export const IFLOW_PROVIDER_ID = 'iflow-oauth'
+export const IFLOW_PROVIDER_ID = 'iflow'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const isNetworkError = (e: any) =>
@@ -182,7 +183,39 @@ export const createIFlowPlugin =
         // Register iflow provider with models
         config.provider = config.provider || {}
         config.provider[id] = config.provider[id] || {}
-        config.provider[id].models = { ...DEFAULT_MODELS, ...(config.provider[id].models || {}) }
+        
+        // Try to fetch models from API
+        let fetchedModels: Record<string, any> = {}
+        try {
+          const am = await AccountManager.loadFromDisk(config.account_selection_strategy)
+          const accounts = am.getAccounts()
+          
+          if (accounts.length > 0) {
+            // Use first available account to fetch models
+            const firstAccount = accounts[0]
+            if (firstAccount) {
+              const authType: 'oauth' | 'apikey' = firstAccount.authMethod === 'oauth' ? 'oauth' : 'apikey'
+              const token = firstAccount.authMethod === 'oauth' 
+                ? firstAccount.accessToken 
+                : firstAccount.apiKey
+                
+              if (token) {
+                logger.log('Fetching models from iFlow API...')
+                fetchedModels = await getModels(token, authType)
+                logger.log(`Fetched ${Object.keys(fetchedModels).length} models from API`)
+              }
+            }
+          }
+        } catch (error: any) {
+          logger.warn(`Failed to fetch models from API: ${error.message}`)
+        }
+        
+        // Merge: fetched models > default models > existing config
+        config.provider[id].models = {
+          ...DEFAULT_MODELS,
+          ...fetchedModels,
+          ...(config.provider[id].models || {})
+        }
       },
       auth: {
         provider: id,
