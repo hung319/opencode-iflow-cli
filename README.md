@@ -30,12 +30,9 @@ Or add to your `opencode.json` with specific version:
 }
 ```
 
-Then select **"iflow"** (lowercase) from the provider list. Note: This is different from the built-in **"iFlow"** (uppercase I):
-
-| Provider | OAuth | API Key | Description |
-|----------|-------|---------|-------------|
-| **iFlow** (built-in) | ❌ | ✅ | OpenCode's built-in iFlow provider |
-| **iflow** (this plugin) | ✅ | ✅ | Enhanced iFlow with OAuth support |
+Then select **"iFlow"** from the provider list. You'll see both options:
+- **API Key** (built-in)
+- **OAuth 2.0** (added by this plugin)
 
 That's it! Models are automatically configured. No manual provider configuration needed.
 
@@ -45,7 +42,7 @@ That's it! Models are automatically configured. No manual provider configuration
 
 ```bash
 opencode auth login
-# Select: iflow (lowercase) → Enter  
+# Select: iFlow → Enter  
 # Choose: OAuth 2.0 or API Key
 ```
 
