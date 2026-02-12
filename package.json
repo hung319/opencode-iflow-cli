@@ -4,7 +4,6 @@
   "description": "OpenCode plugin for iFlow providing access to Qwen, DeepSeek, Kimi, GLM, and iFlow ROME models with auto-config and headless OAuth support",
   "type": "module",
   "main": "dist/index.js",
-  "module": "index.ts",
   "types": "dist/index.d.ts",
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
@@ -76,8 +75,6 @@
     }
   },
   "files": [
-    "index.ts",
-    "src",
     "dist",
     "package.json",
     "README.md"

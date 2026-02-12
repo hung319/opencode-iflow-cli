@@ -22,11 +22,11 @@ OpenCode plugin for iFlow.cn providing access to Qwen, DeepSeek, Kimi, GLM, and 
 npm install -g @hung319/opencode-iflow-cli
 ```
 
-Or add to your `opencode.json`:
+Or add to your `opencode.json` with specific version:
 
 ```json
 {
-  "plugin": ["@hung319/opencode-iflow-cli"]
+  "plugin": ["@hung319/opencode-iflow-cli@2.0.0"]
 }
 ```
 
