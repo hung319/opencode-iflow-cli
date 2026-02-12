@@ -178,12 +178,6 @@ export const createIFlowPlugin =
     }
 
     return {
-      config: async (config: any) => {
-        // Register iflow provider with models
-        config.provider = config.provider || {}
-        config.provider[id] = config.provider[id] || {}
-        config.provider[id].models = { ...DEFAULT_MODELS, ...(config.provider[id].models || {}) }
-      },
       auth: {
         provider: id,
         loader: async (getAuth: any, provider: any) => {
