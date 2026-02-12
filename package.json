@@ -1,6 +1,6 @@
 {
   "name": "@hung319/opencode-iflow-cli",
-  "version": "2.3.0",
+  "version": "3.0.0",
   "description": "OpenCode plugin for iFlow providing access to Qwen, DeepSeek, Kimi, GLM, and iFlow ROME models with auto-config and headless OAuth support",
   "type": "module",
   "main": "dist/index.js",
@@ -55,24 +55,7 @@
     "hooks": [
       "auth",
       "event"
-    ],
-    "models": {
-      "iflow-rome-30ba3b": {
-        "name": "iFlow ROME 30B"
-      },
-      "qwen3-coder-plus": {
-        "name": "Qwen3 Coder Plus"
-      },
-      "qwen3-max": {
-        "name": "Qwen3 Max"
-      },
-      "deepseek-v3": {
-        "name": "DeepSeek V3"
-      },
-      "deepseek-r1": {
-        "name": "DeepSeek R1"
-      }
-    }
+    ]
   },
   "files": [
     "dist",
