@@ -20,7 +20,7 @@ import type { IFlowOAuthTokenResult } from './iflow/oauth'
 import { IFLOW_CONSTANTS, applyThinkingConfig, SUPPORTED_MODELS } from './constants'
 import * as logger from './plugin/logger'
 
-export const IFLOW_PROVIDER_ID = 'iflow'
+export const IFLOW_PROVIDER_ID = 'iflow-oauth'
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 const isNetworkError = (e: any) =>
@@ -178,6 +178,12 @@ export const createIFlowPlugin =
     }
 
     return {
+      config: async (config: any) => {
+        // Register iflow provider with models
+        config.provider = config.provider || {}
+        config.provider[id] = config.provider[id] || {}
+        config.provider[id].models = { ...DEFAULT_MODELS, ...(config.provider[id].models || {}) }
+      },
       auth: {
         provider: id,
         loader: async (getAuth: any, provider: any) => {

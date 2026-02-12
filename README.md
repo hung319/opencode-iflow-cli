@@ -30,9 +30,7 @@ Or add to your `opencode.json` with specific version:
 }
 ```
 
-Then select **"iFlow"** from the provider list. You'll see both options:
-- **API Key** (built-in)
-- **OAuth 2.0** (added by this plugin)
+Then select **"iflow-oauth"** from the provider list when logging in (this is the enhanced iFlow with OAuth support).
 
 That's it! Models are automatically configured. No manual provider configuration needed.
 
