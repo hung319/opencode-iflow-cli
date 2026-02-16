@@ -57,7 +57,11 @@ export class AccountManager {
 
   getMinWaitTime(): number {
     const now = Date.now()
-    const waits = this.accounts.map((a) => (a.rateLimitResetTime || 0) - now).filter((t) => t > 0)
+    const waits = this.accounts.map((a) => {
+      const rateLimitWait = (a.rateLimitResetTime || 0) - now
+      const recoveryWait = (a.recoveryTime || 0) - now
+      return Math.max(rateLimitWait, recoveryWait)
+    }).filter((t) => t > 0)
     return waits.length > 0 ? Math.min(...waits) : 0
   }
 
