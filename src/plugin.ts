@@ -245,9 +245,22 @@ export const createIFlowPlugin =
                 const elapsed = Date.now() - startTime
 
                 if (iterations > maxIterations) {
-                  throw new Error(
-                    `Request exceeded max iterations (${maxIterations}). All accounts may be unhealthy or rate-limited.`
-                  )
+                  // Check if the issue is specifically with account health
+                  const allAccountsChecked = am.getAccountCount() === 0 || am.getAccounts().every(acc => !acc.isHealthy && acc.unhealthyReason?.includes('Token refresh failed'));
+                  
+                  if (allAccountsChecked && am.getAccountCount() === 0) {
+                    throw new Error(
+                      `Request exceeded max iterations (${maxIterations}). All accounts have been removed due to token reset. Please re-authenticate using 'opencode auth login iflow'.`
+                    );
+                  } else if (allAccountsChecked) {
+                    throw new Error(
+                      `Request exceeded max iterations (${maxIterations}). All accounts may be unhealthy or rate-limited. Some accounts may have had their tokens reset. Please try re-authenticating using 'opencode auth login iflow'.`
+                    );
+                  } else {
+                    throw new Error(
+                      `Request exceeded max iterations (${maxIterations}). All accounts may be unhealthy or rate-limited.`
+                    );
+                  }
                 }
 
                 if (elapsed > timeoutMs) {
@@ -292,7 +305,29 @@ export const createIFlowPlugin =
                     await am.saveToDisk()
                   } catch (error: any) {
                     logger.error(`Token refresh failed for account ${acc.id}`, error)
-                    am.markUnhealthy(acc, 'Token refresh failed', Date.now() + 300000)
+                    
+                    // Check if this was a token reset/invalidation error
+                    const errorMessage = error.message.toLowerCase()
+                    if (errorMessage.includes('invalid_grant') || 
+                        errorMessage.includes('invalid refresh token') ||
+                        errorMessage.includes('token') && errorMessage.includes('expired') ||
+                        errorMessage.includes('access_denied')) {
+                      // If token has been reset/invalidated, remove the account permanently
+                      logger.warn(`Removing account ${acc.id} due to invalid token`)
+                      am.removeAccount(acc)
+                      await am.saveToDisk()
+                      
+                      // Reset cursor to prevent out-of-bounds
+                      if (am.getAccountCount() === 0) {
+                        throw new Error('No valid accounts remaining. Please re-authenticate.')
+                      }
+                      
+                      // Continue to next iteration without incrementing iteration counter unnecessarily
+                      continue
+                    } else {
+                      // For other refresh errors, mark as unhealthy as before
+                      am.markUnhealthy(acc, 'Token refresh failed', Date.now() + 300000)
+                    }
                     continue
                   }
                 }
@@ -401,7 +436,27 @@ export const createIFlowPlugin =
 
                   if (response.status === 401 || response.status === 403) {
                     logger.warn(`Authentication failed for ${acc.email}: ${response.status}`)
-                    am.markUnhealthy(acc, 'Authentication failed', Date.now() + 300000)
+                    
+                    // Check if the error response body contains information about token reset
+                    const isTokenResetError = errorText.toLowerCase().includes('invalid_token') || 
+                                              errorText.toLowerCase().includes('token_expired') || 
+                                              errorText.toLowerCase().includes('access_denied') ||
+                                              errorText.toLowerCase().includes('invalid_grant')
+                    
+                    if (isTokenResetError) {
+                      // If it's a token reset, remove the account permanently
+                      logger.warn(`Removing account ${acc.id} due to token reset/unauthorization`)
+                      am.removeAccount(acc)
+                      await am.saveToDisk()
+                      
+                      // Check if we have any accounts left
+                      if (am.getAccountCount() === 0) {
+                        throw new Error('No valid accounts remaining. All accounts have been unlinked due to token reset. Please re-authenticate using "opencode auth login iflow".')
+                      }
+                    } else {
+                      // For other authentication errors, mark as unhealthy as before
+                      am.markUnhealthy(acc, 'Authentication failed', Date.now() + 300000)
+                    }
                     continue
                   }
 
